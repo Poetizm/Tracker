@@ -1,0 +1,219 @@
+#:kivy 2.2.0
+
+<MainScreen>:
+    MDBoxLayout:
+        orientation: "vertical"
+        MDTabs:
+            id: tabs
+            Tab:
+                title: "Главная"
+                MDBoxLayout:
+                    orientation: "vertical"
+                    padding: dp(16)
+                    spacing: dp(16)
+                    MDLabel:
+                        text: "Всего закуплено"
+                        halign: "center"
+                        font_style: "H6"
+                    MDLabel:
+                        text: f"{root.purchased_total:.0f} ₽"
+                        halign: "center"
+                        font_style: "H4"
+                        theme_text_color: "Custom"
+                        text_color: app.theme_cls.primary_color
+                    MDLabel:
+                        text: "Всего продано"
+                        halign: "center"
+                        font_style: "H6"
+                    MDLabel:
+                        text: f"{root.sold_total:.0f} ₽"
+                        halign: "center"
+                        font_style: "H4"
+                        theme_text_color: "Custom"
+                        text_color: app.theme_cls.primary_color
+                    MDLabel:
+                        text: "Прибыль"
+                        halign: "center"
+                        font_style: "H6"
+                    MDLabel:
+                        text: f"{root.profit:.0f} ₽"
+                        halign: "center"
+                        font_style: "H4"
+                        theme_text_color: "Custom"
+                        text_color: (0.2, 0.7, 0.3, 1) if root.profit >= 0 else (0.9, 0.2, 0.2, 1)
+            Tab:
+                title: "Закупки"
+                MDBoxLayout:
+                    orientation: "vertical"
+                    MDBoxLayout:
+                        size_hint_y: None
+                        height: dp(44)
+                        MDLabel:
+                            text: "Товар"
+                            size_hint_x: 0.4
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Шт"
+                            size_hint_x: 0.15
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Цена ₽"
+                            size_hint_x: 0.2
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Сумма ₽"
+                            size_hint_x: 0.25
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: ""
+                            size_hint_x: None
+                            width: dp(40)
+                    ScrollView:
+                        bar_width: dp(4)
+                        scroll_type: ['bars', 'content']
+                        MDBoxLayout:
+                            id: purchases_list
+                            orientation: "vertical"
+                            size_hint_y: None
+                            height: self.minimum_height
+                            padding: [0, 0, 0, dp(100)]
+                    MDFloatingActionButton:
+                        icon: "plus"
+                        pos_hint: {"right": 0.95, "y": 0.05}
+                        on_release: root.open_add_dialog("PURCHASE")
+                    MDFloatingActionButton:
+                        icon: "minus"
+                        pos_hint: {"right": 0.95, "y": 0.2}
+                        on_release: root.open_history("PURCHASE")
+            Tab:
+                title: "Продажи"
+                MDBoxLayout:
+                    orientation: "vertical"
+                    MDBoxLayout:
+                        size_hint_y: None
+                        height: dp(44)
+                        MDLabel:
+                            text: "Товар"
+                            size_hint_x: 0.4
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Шт"
+                            size_hint_x: 0.15
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Цена ₽"
+                            size_hint_x: 0.2
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Сумма ₽"
+                            size_hint_x: 0.25
+                            bold: True
+                            halign: "center"
+                    ScrollView:
+                        bar_width: dp(4)
+                        scroll_type: ['bars', 'content']
+                        MDBoxLayout:
+                            id: sales_list
+                            orientation: "vertical"
+                            size_hint_y: None
+                            height: self.minimum_height
+                            padding: [0, 0, 0, dp(100)]
+                    MDFloatingActionButton:
+                        icon: "plus"
+                        pos_hint: {"right": 0.95, "y": 0.05}
+                        on_release: root.open_add_dialog("SALE")
+                    MDFloatingActionButton:
+                        icon: "minus"
+                        pos_hint: {"right": 0.95, "y": 0.2}
+                        on_release: root.open_history("SALE")
+            Tab:
+                title: "Остаток"
+                MDBoxLayout:
+                    orientation: "vertical"
+                    MDBoxLayout:
+                        size_hint_y: None
+                        height: dp(44)
+                        MDLabel:
+                            text: "Товар"
+                            size_hint_x: 0.5
+                            bold: True
+                            halign: "center"
+                        MDLabel:
+                            text: "Остаток, шт"
+                            size_hint_x: 0.5
+                            bold: True
+                            halign: "center"
+                    ScrollView:
+                        bar_width: dp(4)
+                        scroll_type: ['bars', 'content']
+                        MDBoxLayout:
+                            id: stock_list
+                            orientation: "vertical"
+                            size_hint_y: None
+                            height: self.minimum_height
+
+<AddOperationContent>:
+    orientation: "vertical"
+    size_hint_y: None
+    height: dp(100)
+    padding: dp(8)
+    MDTextField:
+        id: phrase_field
+        hint_text: root.hint_text
+        mode: "rectangle"
+
+<HistoryScreen>:
+    MDBoxLayout:
+        orientation: "vertical"
+        MDTopAppBar:
+            title: "История операций"
+            left_action_items: [["arrow-left", lambda x: root.go_back()]]
+        MDBoxLayout:
+            size_hint_y: None
+            height: dp(40)
+            padding: dp(8)
+            MDLabel:
+                text: "Дата"
+                size_hint_x: 0.25
+                bold: True
+                halign: "center"
+            MDLabel:
+                text: "Тип"
+                size_hint_x: 0.12
+                bold: True
+                halign: "center"
+            MDLabel:
+                text: "Товар"
+                size_hint_x: 0.28
+                bold: True
+                halign: "center"
+            MDLabel:
+                text: "Кол"
+                size_hint_x: 0.1
+                bold: True
+                halign: "center"
+            MDLabel:
+                text: "Цена"
+                size_hint_x: 0.1
+                bold: True
+                halign: "center"
+            MDLabel:
+                text: "Сумма"
+                size_hint_x: 0.15
+                bold: True
+                halign: "center"
+        ScrollView:
+            bar_width: dp(4)
+            scroll_type: ['bars', 'content']
+            MDBoxLayout:
+                id: history_list
+                orientation: "vertical"
+                size_hint_y: None
+                height: self.minimum_height
