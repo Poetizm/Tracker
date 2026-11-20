@@ -34,18 +34,29 @@ jobs:
 
       - name: Build APK
         run: |
+          set -o pipefail
           yes | buildozer -v android debug 2>&1 | tee build.log
+          echo "=== Searching for APK ==="
+          find . -name "*.apk" -type f 2>/dev/null || echo "No APK found"
+          echo "=== Searching for AAB ==="
+          find . -name "*.aab" -type f 2>/dev/null || echo "No AAB found"
+          echo "=== Done ==="
+
+      - name: Upload log (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: warn
 
       - name: Upload APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tracker-apk
-          path: bin/*.apk
-
-      - name: Upload log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
+          path: |
+            bin/*.apk
+            .buildozer/**/bin/*.apk
+            .buildozer/**/*.apk
+          if-no-files-found: warn
