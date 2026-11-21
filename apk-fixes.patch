@@ -1,0 +1,163 @@
+From 21efae36afbf77d09d6d4e6e6cd3996476799f8b Mon Sep 17 00:00:00 2001
+From: "qwen.ai[bot]" <qwenlm-intl@service.alibaba.com>
+Date: Sat, 21 Nov 2026 14:19:32 +0000
+Subject: [PATCH] Fix build-blocking issues for APK: KivyMD 1.2.0 pin, parser
+ name-shadowing, DB path, go_back compat, debug_artifact flag
+
+---
+ .gitignore       |  4 ++++
+ buildozer.spec   | 12 ++++++++----
+ main.py          | 51 ++++++++++++++++++++++++++++++++++++++----------
+ requirements.txt |  3 ++-
+ 4 files changed, 55 insertions(+), 15 deletions(-)
+ create mode 100644 .gitignore
+
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..ca19727
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,4 @@
++__pycache__/
++.buildozer/
++bin/
++*.db
+diff --git a/buildozer.spec b/buildozer.spec
+index f91b3d1..71a235d 100644
+--- a/buildozer.spec
++++ b/buildozer.spec
+@@ -1,24 +1,28 @@
+ [app]
++
+ title = Tracker
+ package.name = tracker
+ package.domain = org.tracker
+ source.dir = .
+ source.include_exts = py,png,jpg,kv,atlas
+ version = 1.0
+-requirements = python3,kivy==2.3.1,https://github.com/KivyMD/KivyMD/archive/master.zip,pillow
++; Kivy 2.3.x + стабильный релиз KivyMD 1.2.0 (в нём есть MDTabsBase, MDTabs, MDTopAppBar).
++; НЕ используйте archive master.zip из GitHub — он меняется со временем и ломает воспроизводимую сборку.
++requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow
+ orientation = portrait
+ fullscreen = 0
+ android.permissions = INTERNET
+-android.api = 30
++android.api = 33
+ android.minapi = 21
+ android.ndk_api = 21
+ android.archs = arm64-v8a, armeabi-v7a
+ android.allow_backup = True
+ android.accept_sdk_license = True
+-android.debug_artifact = apk
++; Для debug-артефакта значение должно быть булевым (True), а не строкой "apk"
++android.debug_artifact = True
+ android.release_artifact = apk
+ p4a.branch = master
+ 
+ [buildozer]
+ log_level = 2
+-warn_on_root = 1
+\ No newline at end of file
++warn_on_root = 1
+diff --git a/main.py b/main.py
+index 1a94b56..7e9f8eb 100644
+--- a/main.py
++++ b/main.py
+@@ -1,4 +1,7 @@
+ # main.py
++import os
++import sys
++
+ from kivymd.app import MDApp
+ from kivymd.uix.screen import MDScreen
+ from kivymd.uix.screenmanager import MDScreenManager
+@@ -10,9 +13,19 @@ from kivymd.uix.textfield import MDTextField
+ from kivymd.uix.label import MDLabel
+ from kivy.properties import StringProperty, NumericProperty
+ from kivy.metrics import dp
++from kivy.lang import Builder
++from kivy.clock import Clock
+ 
+ from database import Database
+-from parser import parse_phrase
++# ВАЖНО: модуль называется "parser" — это имя стандартного модуля Python.
++# Импортируем строго по абсолютному пути файла, чтобы на Android
++# (python-for-android) не произошёл конфликт со stdlib-парсером.
++_parser_spec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parser.py")
++import importlib.util as _ilu
++_spec = _ilu.spec_from_file_location("app_parser", _parser_spec_file)
++_parser_mod = _ilu.module_from_spec(_spec)
++_spec.loader.exec_module(_parser_mod)
++parse_phrase = _parser_mod.parse_phrase
+ 
+ 
+ class Tab(MDBoxLayout, MDTabsBase):
+@@ -256,19 +269,38 @@ class HistoryScreen(MDScreen):
+     def go_back(self):
+         tab_index = 1 if self.current_filter == "PURCHASE" else 2
+         self.manager.current = "main"
+-        self.manager.get_screen("main").ids.tabs.carousel.index = tab_index
++        # Совместимо с KivyMD 1.1.1 и 1.2.0 (в 1.2.0 у MDTabs нет carousel)
++        tabs = self.manager.get_screen("main").ids.tabs
++        try:
++            tabs.switch_tab(tab_index)
++        except Exception:
++            try:
++                tabs.carousel.index = tab_index
++            except Exception:
++                pass
+ 
+ 
+ class TrackerApp(MDApp):
++    title = "Tracker"
++
+     def build(self):
+         self.theme_cls.primary_palette = "Blue"
+-        self.db = Database("inventory.db")
+-
+-        for i in range(1, 11):
+-            self.db.add_product(f"название{i}")
+-
+-        from kivy.lang import Builder
+-        Builder.load_file("main.kv")
++        # БД пишем во внутреннюю директорию приложения:
++        # на Android текущая директория может быть недоступна для записи.
++        app_dir = os.path.dirname(os.path.abspath(__file__))
++        from kivy.utils import platform
++        if platform == "android":
++            # Внутренняя директория приложения, доступна для записи
++            app_dir = os.environ.get("ANDROID_PRIVATE", app_dir)
++        self.db = Database(os.path.join(app_dir, "inventory.db"))
++
++        # Заполняем демо-товары только если база пуста (иначе при каждом старте — лишний шум)
++        if not self.db.get_all_products():
++            for i in range(1, 11):
++                self.db.add_product(f"название{i}")
++
++        # KV грузим из файла рядом с main.py (надёжнее относительного пути на Android)
++        Builder.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.kv"))
+ 
+         sm = MDScreenManager()
+         main_screen = MainScreen(self.db, name="main")
+@@ -276,7 +308,6 @@ class TrackerApp(MDApp):
+         sm.add_widget(main_screen)
+         sm.add_widget(history_screen)
+ 
+-        from kivy.clock import Clock
+         Clock.schedule_once(lambda dt: main_screen.refresh(), 0)
+         return sm
+ 
+diff --git a/requirements.txt b/requirements.txt
+index 822c15e..ed60c3b 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+ kivy==2.3.1
+-kivymd==1.1.1
+\ No newline at end of file
++kivymd==1.2.0
++pillow
+-- 
+2.39.5
+
