@@ -5,7 +5,7 @@ package.domain = org.tracker
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
-requirements = python3,kivy==2.3.2,kivymd==1.2.0,pillow
+requirements = python3,kivy==2.3.1,kivymd==1.1.1,pillow
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET
@@ -15,8 +15,8 @@ android.ndk_api = 21
 android.archs = arm64-v8a, armeabi-v7a
 android.allow_backup = True
 android.accept_sdk_license = True
-android.release_artifact = apk
 android.debug_artifact = apk
+android.release_artifact = apk
 p4a.branch = master
 
 [buildozer]
