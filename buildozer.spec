@@ -5,7 +5,7 @@ package.domain = org.tracker
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 version = 1.0
-requirements = python3,kivy==2.3.1,kivymd==1.1.1,pillow
+requirements = python3,kivy==2.3.1,https://github.com/KivyMD/KivyMD/archive/master.zip,pillow
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET
