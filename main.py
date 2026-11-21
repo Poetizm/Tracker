@@ -1,4 +1,7 @@
 # main.py
+import os
+import sys
+
 from kivymd.app import MDApp
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.screenmanager import MDScreenManager
@@ -10,9 +13,19 @@ from kivymd.uix.textfield import MDTextField
 from kivymd.uix.label import MDLabel
 from kivy.properties import StringProperty, NumericProperty
 from kivy.metrics import dp
+from kivy.lang import Builder
+from kivy.clock import Clock
 
 from database import Database
-from parser import parse_phrase
+# ВАЖНО: модуль называется "parser" — это имя стандартного модуля Python.
+# Импортируем строго по абсолютному пути файла, чтобы на Android
+# (python-for-android) не произошёл конфликт со stdlib-парсером.
+_parser_spec_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "parser.py")
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("app_parser", _parser_spec_file)
+_parser_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_parser_mod)
+parse_phrase = _parser_mod.parse_phrase
 
 
 class Tab(MDBoxLayout, MDTabsBase):
@@ -256,19 +269,38 @@ class HistoryScreen(MDScreen):
     def go_back(self):
         tab_index = 1 if self.current_filter == "PURCHASE" else 2
         self.manager.current = "main"
-        self.manager.get_screen("main").ids.tabs.carousel.index = tab_index
+        # Совместимо с KivyMD 1.1.1 и 1.2.0 (в 1.2.0 у MDTabs нет carousel)
+        tabs = self.manager.get_screen("main").ids.tabs
+        try:
+            tabs.switch_tab(tab_index)
+        except Exception:
+            try:
+                tabs.carousel.index = tab_index
+            except Exception:
+                pass
 
 
 class TrackerApp(MDApp):
+    title = "Tracker"
+
     def build(self):
         self.theme_cls.primary_palette = "Blue"
-        self.db = Database("inventory.db")
+        # БД пишем во внутреннюю директорию приложения:
+        # на Android текущая директория может быть недоступна для записи.
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        from kivy.utils import platform
+        if platform == "android":
+            # Внутренняя директория приложения, доступна для записи
+            app_dir = os.environ.get("ANDROID_PRIVATE", app_dir)
+        self.db = Database(os.path.join(app_dir, "inventory.db"))
 
-        for i in range(1, 11):
-            self.db.add_product(f"название{i}")
+        # Заполняем демо-товары только если база пуста (иначе при каждом старте — лишний шум)
+        if not self.db.get_all_products():
+            for i in range(1, 11):
+                self.db.add_product(f"название{i}")
 
-        from kivy.lang import Builder
-        Builder.load_file("main.kv")
+        # KV грузим из файла рядом с main.py (надёжнее относительного пути на Android)
+        Builder.load_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.kv"))
 
         sm = MDScreenManager()
         main_screen = MainScreen(self.db, name="main")
@@ -276,7 +308,6 @@ class TrackerApp(MDApp):
         sm.add_widget(main_screen)
         sm.add_widget(history_screen)
 
-        from kivy.clock import Clock
         Clock.schedule_once(lambda dt: main_screen.refresh(), 0)
         return sm
 
